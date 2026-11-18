@@ -1,0 +1,167 @@
+### ============================================================
+### Testes da API Triad  (extensão REST Client do VS Code)
+### Troque a URL abaixo pela URL do Render/Railway (terminando em /api)
+### ============================================================
+@base = https://SEU-APP.onrender.com/api
+# Para testar local: @base = http://127.0.0.1:5000/api
+
+### 1. Health check
+GET {{base}}/health
+
+### 2. Conexão com o banco MySQL na nuvem
+GET {{base}}/health/db
+
+### 3. Cadastrar paciente (senha vai para o banco com hash bcrypt)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "tipo": "paciente",
+  "nome": "Maria Teste",
+  "telefone": "11999990001",
+  "genero": "Feminino",
+  "dataNasc": "2000-05-20",
+  "email": "maria@teste.com",
+  "senha": "123456"
+}
+
+### 4. Cadastrar profissional
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "tipo": "profissional",
+  "nome": "Dra. Ana",
+  "telefone": "11999990002",
+  "genero": "Feminino",
+  "documentoCip": "CIP-12345",
+  "email": "ana@teste.com",
+  "senha": "123456"
+}
+
+### 5. Login do paciente (gera o token JWT)
+# @name loginPaciente
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "login": "maria@teste.com", "senha": "123456" }
+
+###
+@tokenPaciente = {{loginPaciente.response.body.access_token}}
+
+### 6. Login do profissional
+# @name loginProfissional
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "login": "ana@teste.com", "senha": "123456" }
+
+###
+@tokenProfissional = {{loginProfissional.response.body.access_token}}
+
+### 7. Senha errada -> 401
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "login": "maria@teste.com", "senha": "errada" }
+
+### ---------------- PROTEÇÃO DE ROTAS ----------------
+
+### 8. Rota privada SEM token -> 401
+GET {{base}}/diario
+
+### 9. Usuário autenticado
+GET {{base}}/auth/me
+Authorization: Bearer {{tokenPaciente}}
+
+### ---------------- 1:N  Paciente -> Diário ----------------
+
+### 10. Paciente cria relato (enviado = false é rascunho)
+POST {{base}}/diario
+Authorization: Bearer {{tokenPaciente}}
+Content-Type: application/json
+
+{ "texto": "Hoje me senti mais calma depois de respirar fundo.", "data": "2026-11-17", "enviado": true }
+
+### 11. Listagem PAGINADA do diário (pag e por_pagina)
+GET {{base}}/diario?pag=1&por_pagina=5
+Authorization: Bearer {{tokenPaciente}}
+
+### 12. Parâmetros inválidos de paginação -> 400
+GET {{base}}/diario?pag=0&por_pagina=500
+Authorization: Bearer {{tokenPaciente}}
+
+### 13. Paciente edita o relato (troque o 1 pelo idDiario criado)
+PUT {{base}}/diario/1
+Authorization: Bearer {{tokenPaciente}}
+Content-Type: application/json
+
+{ "texto": "Texto atualizado.", "enviado": true }
+
+### 14. Paciente NÃO pode criar relato como profissional -> 403
+POST {{base}}/diario
+Authorization: Bearer {{tokenProfissional}}
+Content-Type: application/json
+
+{ "texto": "teste" }
+
+### ---------------- 1:N  Profissional -> Diário (respostas) ----------------
+
+### 15. Profissional lista relatos enviados (paginado)
+GET {{base}}/diario?pag=1&por_pagina=10
+Authorization: Bearer {{tokenProfissional}}
+
+### 16. Profissional responde o relato
+PUT {{base}}/diario/1
+Authorization: Bearer {{tokenProfissional}}
+Content-Type: application/json
+
+{ "resposta": "Que bom! Continue praticando a respiração." }
+
+### 17. Excluir relato (somente o dono)
+DELETE {{base}}/diario/1
+Authorization: Bearer {{tokenPaciente}}
+
+### ---------------- N:N  Paciente <-> Técnica ----------------
+
+### 18. Listar técnicas (paginado)
+GET {{base}}/tecnica?pag=1&por_pagina=10
+Authorization: Bearer {{tokenPaciente}}
+
+### 19. Paciente registra uso de uma técnica
+# @name registro
+POST {{base}}/paciente-tecnica
+Authorization: Bearer {{tokenPaciente}}
+Content-Type: application/json
+
+{ "idTecnica": 1 }
+
+### 20. Técnicas usadas pelo paciente (paginado, com dados da técnica)
+GET {{base}}/paciente-tecnica?pag=1&por_pagina=10
+Authorization: Bearer {{tokenPaciente}}
+
+### 21. Profissional vê as técnicas de um paciente (idPaciente obrigatório)
+GET {{base}}/paciente-tecnica?idPaciente=1&pag=1&por_pagina=10
+Authorization: Bearer {{tokenProfissional}}
+
+### 22. Resumo do paciente: total de relatos (1:N) + técnicas usadas (N:N)
+GET {{base}}/paciente/1/resumo
+Authorization: Bearer {{tokenProfissional}}
+
+### 23. Remover registro de técnica (troque o 1 pelo idPacienteTecnica)
+DELETE {{base}}/paciente-tecnica/1
+Authorization: Bearer {{tokenPaciente}}
+
+### ---------------- OUTRAS LISTAGENS PAGINADAS ----------------
+
+### 24. Eventos
+GET {{base}}/evento?pag=1&por_pagina=2
+Authorization: Bearer {{tokenPaciente}}
+
+### 25. Livros
+GET {{base}}/livro?pag=1&por_pagina=10
+Authorization: Bearer {{tokenPaciente}}
+
+### 26. Frase do dia
+GET {{base}}/frase?data=2026-11-17
+Authorization: Bearer {{tokenPaciente}}
