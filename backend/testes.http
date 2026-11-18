@@ -2,8 +2,9 @@
 ### Testes da API Triad  (extensão REST Client do VS Code)
 ### Troque a URL abaixo pela URL do Render/Railway (terminando em /api)
 ### ============================================================
-@base = https://SEU-APP.onrender.com/api
-# Para testar local: @base = http://127.0.0.1:5000/api
+# @base = https://SEU-APP.onrender.com/api
+# Para testar local: 
+@base = http://127.0.0.1:5000/api
 
 ### 1. Health check
 GET {{base}}/health

@@ -11,8 +11,7 @@ from flask_jwt_extended import JWTManager
 from service.db_service import db, configurar_banco
 from service.erros import ErroServico
 from service.seed_service import inicializar_banco
-import model.entities  # noqa: F401  (registra as tabelas no SQLAlchemy)
-
+import model.entities 
 from routes.health_bp import health_bp
 from routes.auth_bp import auth_bp
 from routes.diario_bp import diario_bp
@@ -30,7 +29,7 @@ def criar_app():
 
     chave = os.getenv("JWT_SECRET_KEY")
     if not chave:
-        if os.getenv("DATABASE_URL"):  # ambiente de nuvem: nunca subir com chave padrão
+        if os.getenv("DATABASE_URL"): 
             raise RuntimeError("Defina a variável de ambiente JWT_SECRET_KEY.")
         chave = "chave-somente-para-desenvolvimento-local-0123456789"
     app.config["JWT_SECRET_KEY"] = chave
@@ -81,12 +80,12 @@ def criar_app():
         db.session.rollback()
         return jsonify({"message": "Erro interno do servidor."}), 500
 
-    # Cria tabelas e dados iniciais ao subir (também com gunicorn, não só com `python app.py`)
+
     if os.getenv("AUTO_CREATE_TABLES", "true").lower() != "false":
         with app.app_context():
             try:
                 inicializar_banco()
-            except Exception as e:  # não derruba o servidor; /api/health/db mostra o problema
+            except Exception as e: 
                 db.session.rollback()
                 app.logger.error("Falha ao inicializar o banco: %s", e)
     return app
